@@ -1,0 +1,35 @@
+name: Generate WhatsApp social preview
+on:
+  push:
+    paths:
+      - '.github/workflows/social-preview.yml'
+      - 'F3347825-B665-4717-BF5D-3ECBEA506AD1.png'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install --quiet Pillow
+      - name: Make optimized landscape link card from portrait invitation
+        run: |
+          python - <<'PY'
+          from PIL import Image, ImageOps, ImageFilter, ImageEnhance
+          src=Image.open('F3347825-B665-4717-BF5D-3ECBEA506AD1.png').convert('RGB')
+          bg=ImageOps.fit(src,(1200,630),method=Image.Resampling.LANCZOS).filter(ImageFilter.GaussianBlur(30))
+          bg=ImageEnhance.Brightness(bg).enhance(.47)
+          fg=ImageOps.contain(src,(520,604),method=Image.Resampling.LANCZOS)
+          bg.paste(fg,((1200-fg.width)//2,(630-fg.height)//2))
+          bg.save('wedding-social-preview.jpg','JPEG',quality=80,optimize=True,progressive=False)
+          PY
+      - name: Publish preview
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add wedding-social-preview.jpg
+          git diff --cached --quiet || (git commit -m "Generate optimized WhatsApp preview" && git push)
